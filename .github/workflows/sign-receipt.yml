@@ -37,4 +37,4 @@ jobs:
             const fs = require('fs');
             const receipt = JSON.parse(fs.readFileSync('/tmp/receipt.json', 'utf8'));
             const payload = 'RECEIPT[' + Buffer.from(JSON.stringify(receipt)).toString('base64url') + ']';
-            await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number, body: '已签发官方回执' + BT + BT + BT + payload + BT + BT + BT });
+            await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number, body: '已签发官方回执' + String.fromCharCode(10, 96, 96, 96, 10) + payload + String.fromCharCode(10, 96, 96, 96) });
