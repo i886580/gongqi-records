@@ -1,0 +1,40 @@
+name: sign-receipt
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: write
+  issues: write
+concurrency:
+  group: receipt-${{ github.event.issue.number }}
+  cancel-in-progress: false
+jobs:
+  sign:
+    if: github.event.issue.user.type != 'Bot'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: parse-sign
+        env:
+          GQ_ROOT_KEY: ${{ secrets.GQ_ROOT_KEY }}
+        run: node scripts/sign-from-issue.js "$GITHUB_EVENT_PATH" > /tmp/receipt.json
+      - name: commit-receipt
+        run: |
+          set -e
+          git config user.name gongqi-bot
+          git config user.email gongqi-bot@users.noreply.github.com
+          mkdir -p receipts
+          HASH=$(node -e "const fs=require('fs');const r=JSON.parse(fs.readFileSync('/tmp/receipt.json','utf8'));process.stdout.write(r.body.recordHash)")
+          cp /tmp/receipt.json "receipts/$HASH.json"
+          git add "receipts/$HASH.json"
+          if git diff --cached --quiet; then echo exists; else git commit -m "receipt"; git push; fi
+      - name: comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const receipt = JSON.parse(fs.readFileSync('/tmp/receipt.json', 'utf8'));
+            const payload = 'RECEIPT[' + Buffer.from(JSON.stringify(receipt)).toString('base64url') + ']';
+            await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number, body: '已签发官方回执' + BT + BT + BT + payload + BT + BT + BT });
